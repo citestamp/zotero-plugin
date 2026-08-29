@@ -1,6 +1,6 @@
 # CiteStamp for Zotero
 
-A **Zotero 8/9 plugin** that brings CiteStamp's **citation-health check** into the
+A plugin for **Zotero 8 and later** that brings CiteStamp's **citation-health check** into the
 reference manager itself, the same engine that rides the web `/check` page, the
 Overleaf wrapper, the Microsoft Word add-in, and the Google Docs add-on. For any
 item it answers, in Rule-1 language:
@@ -17,7 +17,7 @@ work.
 
 Zotero is a **desktop app** (Gecko/Firefox-based, runs locally), no Cloudflare
 Worker can reach it, and there is no web DOM to inject into. So this is a
-**Zotero 8/9 bootstrapped plugin** (the modern API; the old XUL-overlay model is
+**Zotero 8 and later bootstrapped plugin** (the modern API; the old XUL-overlay model is
 dead). It runs in Zotero's **privileged JS context**, where `fetch` has no CORS
 constraint, so the citation-health logic runs entirely on the user's machine.
 It targets Zotero **8.0 and up** (`strict_min_version` `8.0`,
