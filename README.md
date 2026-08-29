@@ -17,7 +17,7 @@ work.
 
 Zotero is a **desktop app** (Gecko/Firefox-based, runs locally), no Cloudflare
 Worker can reach it, and there is no web DOM to inject into. So this is a
-**Zotero 8 and later bootstrapped plugin** (the modern API; the old XUL-overlay model is
+**bootstrapped plugin for Zotero 8 and later** (the modern API; the old XUL-overlay model is
 dead). It runs in Zotero's **privileged JS context**, where `fetch` has no CORS
 constraint, so the citation-health logic runs entirely on the user's machine.
 It targets Zotero **8.0 and up** (`strict_min_version` `8.0`,
@@ -96,7 +96,7 @@ Mocks OpenAlex/Crossref/DataCite/graph and drives `checkOne` through a good DOI,
 a bogus DOI, a DOI with a recorded refutation, a retracted work, and a
 DataCite-only (Zenodo-style) DOI. No network spend.
 
-## Build & install in Zotero (8/9)
+## Build & install in Zotero (8 and later)
 
 **Build the `.xpi`** (a plain zip of the plugin *contents*, not the folder, so
 `manifest.json` sits at the archive root):
@@ -116,7 +116,7 @@ restart Zotero. See the Zotero plugin docs for the proxy-file workflow.
 
 ## Verify in Zotero (real e2e)
 
-Zotero is a desktop GUI and can't run headless. On a machine with Zotero 8 or 9:
+Zotero is a desktop GUI and can't run headless. On a machine with Zotero 8 or later:
 
 1. Add three items: one with a **good DOI**, one with a **bogus DOI**, one with
    a **DOI that has a recorded refutation** in the CiteStamp graph.
