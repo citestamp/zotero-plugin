@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "CiteStamp",
+  "version": "1.0.3",
+  "description": "Citation health, inside Zotero: does a reference resolve to a real work, does it have recorded refutations, is it marked retracted? Plus a one-click path to put your ORCID on your own work. Never a truth layer.",
+  "homepage_url": "https://citestamp.com",
+  "author": "3Rivers Enterprises LLC d/b/a CiteStamp",
+  "icons": {
+    "48": "icon.png",
+    "96": "icon.png"
+  },
+  "applications": {
+    "zotero": {
+      "id": "citestamp@citestamp.com",
+      "update_url": "https://citestamp.com/zotero/updates.json",
+      "strict_min_version": "8.0",
+      "strict_max_version": "10.99.99"
+    }
+  }
+}
