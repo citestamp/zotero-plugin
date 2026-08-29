@@ -47,7 +47,7 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
 - **`bootstrap.js`** is the Zotero lifecycle entry (`startup` / `shutdown` /
   `onMainWindowLoad` / `onMainWindowUnload`); it loads the core + controller,
   registers the global section + menu, and injects the Fluent labels per window.
-- The hosted service is **untouched**, it keeps serving the
+- The hosted service is **untouched**. It keeps serving the
   engines. Signing stays server-side (Rule 6): the plugin never reimplements
   ORCID OAuth; it just launches `citestamp.com/claim?paper=<doi>`.
 
