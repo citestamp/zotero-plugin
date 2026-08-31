@@ -34,6 +34,17 @@ function mockFetch(url) {
         edges: [{ predicate: "refutes", object: target, tier: "asserted", attribution: "Curie" }],
       });
     }
+    if (has("10.1/replicated")) {
+      const t2 = "https://doi.org/10.1/replicated";
+      return res(200, {
+        id: t2,
+        edges: [
+          { subject: "https://doi.org/10.2/rep1", predicate: "refutes", object: t2, tier: "inferred", attribution: "forrt-fred" },
+          { subject: "https://doi.org/10.2/rep2", predicate: "supports", object: t2, tier: "inferred", attribution: "forrt-fred" },
+          { subject: "https://doi.org/10.2/citer", predicate: "cites", object: t2, tier: "inferred", attribution: "openalex-extracted" },
+        ],
+      });
+    }
     if (has("10.9/ingraph")) {
       const target = "https://doi.org/10.9/ingraph";
       return res(200, {
@@ -98,6 +109,9 @@ function mockFetch(url) {
     if (has("10.1/refuted")) {
       return res(200, { id: "https://openalex.org/W_refuted", doi: "https://doi.org/10.1/refuted", title: "Refuted Paper", display_name: "Refuted Paper", publication_year: 2019, is_retracted: false });
     }
+    if (has("10.1/replicated")) {
+      return res(200, { id: "https://openalex.org/W_rep", doi: "https://doi.org/10.1/replicated", title: "Replicated Paper", display_name: "Replicated Paper", publication_year: 2017, is_retracted: false });
+    }
     if (has("10.1/retracted")) {
       return res(200, { id: "https://openalex.org/W_retracted", doi: "https://doi.org/10.1/retracted", title: "Retracted Paper", display_name: "Retracted Paper", publication_year: 2018, is_retracted: true });
     }
@@ -129,6 +143,7 @@ function mockFetch(url) {
     if (has("10.1/withdrawn")) { return res(200, { message: { DOI: "10.1/withdrawn", title: ["Paper WD"], "update-to": [{ DOI: "10.1/withdrawn", type: "withdrawal" }] } }); }
     if (has("10.1/good") || has("10.1234/good")) { return res(200, { message: { DOI: "10.1/good", title: ["Good Paper"], issued: { "date-parts": [[2020]] } } }); }
     if (has("10.1/refuted")) { return res(200, { message: { DOI: "10.1/refuted", title: ["Refuted Paper"], issued: { "date-parts": [[2019]] } } }); }
+    if (has("10.1/replicated")) { return res(200, { message: { DOI: "10.1/replicated", title: ["Replicated Paper"], issued: { "date-parts": [[2017]] } } }); }
     if (has("10.1/retracted")) { return res(200, { message: { DOI: "10.1/retracted", title: ["Retracted Paper"], issued: { "date-parts": [[2018]] } } }); }
     return res(404, {}); // bogus + datacite-only DOIs OA/CR don't know
   }
@@ -168,6 +183,16 @@ async function run() {
   check("refuted: one refutation", refuted.refutations === 1);
   check("refuted: status has-refutations", refuted.status === "has-refutations");
   check("refuted: source recorded", (refuted.refutationSources || []).indexOf("Curie") >= 0);
+
+  // ---- typed tier: FORRT replication outcomes are separate counters ----
+  const rep2 = await Core.checkOne({ doi: "10.1/replicated", title: null });
+  check("forrt: resolved", rep2.resolved === true);
+  check("forrt: failed replication counted", rep2.fredFailed === 1);
+  check("forrt: successful replication counted", rep2.fredSuccessful === 1);
+  check("forrt: NOT folded into signed refutations", rep2.refutations === 0);
+  check("forrt: status stays ok (no truth verdict)", rep2.status === "ok");
+  check("forrt: tier counts populated", rep2.graphSigned === 0 && rep2.graphInferred === 3);
+  check("refuted: tier counts see the asserted edge", refuted.graphSigned === 1 && refuted.graphInferred === 0);
 
   const retracted = await Core.checkOne({ doi: "10.1/retracted", title: null });
   check("retracted: resolved", retracted.resolved === true);
@@ -211,6 +236,7 @@ async function run() {
   check("ingraph: not resolved", ingraph.resolved === false);
   check("ingraph: inGraph true", ingraph.inGraph === true);
   check("ingraph: graphEdges 1", ingraph.graphEdges === 1);
+  check("ingraph: tier counts populated", ingraph.graphSigned === 0 && ingraph.graphInferred === 1);
   check("ingraph: note cites CiteStamp graph", (ingraph.notes || []).join(" ").indexOf("CiteStamp citation graph") >= 0);
 
   // Stopword moat: a one-content-word-mutated title must NOT read as a strong

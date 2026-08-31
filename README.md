@@ -7,11 +7,24 @@ item it answers, in Rule-1 language:
 
 - **does this reference resolve to a real work?** (catches invented citations)
 - **does it have recorded refutations** in the CiteStamp graph? (signed edges only)
-- **is it marked retracted** by the publisher? (best-effort, tri-state)
+- **does it have recorded replication outcomes?** Typed supports/refutes edges
+  coded by the FORRT Replication Database (inferred tier, shown as
+  "N failed/successful replication(s) recorded (FORRT)", never folded into the
+  signed refutation count).
+- **how connected is it?** Signed and machine-inferred edge counts from the
+  public graph, plus a one-click **"Open citation graph on citestamp.com"** link
+  to the paper's interactive graph.
 
 …and offers a one-click **"Claim / sign on citestamp.com"** that opens the
 hosted ORCID claim flow in your browser, so you can put your name on your own
 work.
+
+A paper its publisher has **marked retracted** is still flagged, best-effort, with
+the engine's provenance line. Since 1.0.4 the pane prints a retraction row **only
+when a retraction is actually flagged**: Zotero itself has flagged retracted items
+against the Retraction Watch database since 2019, so a "not marked retracted" line
+on every clean item duplicated the host. Detection is unchanged; the no-news line
+is gone.
 
 ## Why a Zotero bootstrapped plugin (and not a Worker route)
 
@@ -123,10 +136,13 @@ Zotero is a desktop GUI and can't run headless. On a machine with Zotero 8 or la
 2. Select each, the **CiteStamp** item-pane section should show the right
    Rule-1 verdict ("resolves to a real work" / "could not find this reference in
    the open scholarly record" / "N recorded refutations" / "marked retracted
-   (best-effort)").
+   (best-effort)"), plus the signed/inferred edge counts and any
+   "failed/successful replication(s) recorded (FORRT)" lines.
 3. Right-click the selection → **Check citation health (CiteStamp)** → confirm
    the summary counts.
-4. Click **Claim / sign on citestamp.com →** → confirm it opens
+4. Click **Open citation graph on citestamp.com →** → confirm it opens
+   `citestamp.com/paper/<doi>` in your browser.
+5. Click **Claim / sign on citestamp.com →** → confirm it opens
    `citestamp.com/claim?paper=<doi>` in your browser.
 
 

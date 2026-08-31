@@ -257,12 +257,36 @@ var CiteStamp = {
     var a = this._html(doc, "a");
     a.textContent = text;
     a.setAttribute("href", "#");
-    a.setAttribute("style", "color:#1565c0; text-decoration:underline; cursor:pointer; display:inline-block; margin-top:6px;");
+    a.setAttribute("style", "color:#1565c0; text-decoration:underline; cursor:pointer; display:block; margin-top:6px;");
     a.addEventListener("click", function (ev) {
       ev.preventDefault();
       try { Zotero.launchURL(url); } catch (e) {}
     });
     return a;
+  },
+
+  // one line, two visually-separated tiers: signed (gold) vs inferred (steel)
+  // — the same firewall the site and the extension popup draw.
+  _tierLine: function (doc, signed, inferred) {
+    var p = this._html(doc, "div");
+    p.setAttribute("style", "padding:2px 0; line-height:1.4; font-size:0.85em;");
+    var lead = this._html(doc, "span");
+    lead.textContent = "In the CiteStamp graph: ";
+    lead.setAttribute("style", "opacity:0.8;");
+    p.appendChild(lead);
+    var s = this._html(doc, "span");
+    s.textContent = signed + " signed";
+    s.setAttribute("style", "color:#9c6e1f; font-weight:600;");
+    p.appendChild(s);
+    var sep = this._html(doc, "span");
+    sep.textContent = " · ";
+    sep.setAttribute("style", "opacity:0.6;");
+    p.appendChild(sep);
+    var m = this._html(doc, "span");
+    m.textContent = inferred + " machine-inferred";
+    m.setAttribute("style", "color:#5d6675;");
+    p.appendChild(m);
+    return p;
   },
 
   // rich verdict: status headline (colored), work metadata, refutations /
@@ -290,14 +314,26 @@ var CiteStamp = {
       if (v.work.doi) { body.appendChild(this._link(doc, "View on doi.org →", "https://doi.org/" + v.work.doi)); }
     }
 
-    if (v.resolved && v.status !== "marked-retracted") {
-      if (v.retracted === "clear") { body.appendChild(this._p(doc, "Not marked retracted (best-effort).", { small: true })); }
-      else if (v.retracted === "unknown") { body.appendChild(this._p(doc, "Retraction status unknown.", { small: true })); }
-    }
+    // Soft-honor (1.0.4): Zotero has flagged retractions via the Retraction
+    // Watch database since 2019, so a clean/unknown retraction line here only
+    // duplicated the host. The marked-retracted headline above and its
+    // provenance line below STAY — detection unchanged, no-news line gone.
     var prov = CiteStampCheckCore.provenanceLine(v.publisherEvent);
     if (prov) { body.appendChild(this._p(doc, prov, { small: true, dim: true })); }
     if (v.refutations > 0 && v.refutationSources && v.refutationSources.length) {
       body.appendChild(this._p(doc, "Recorded by: " + v.refutationSources.join(", "), { small: true, dim: true }));
+    }
+    // Typed replication outcomes (FORRT Replication Database) — inferred tier,
+    // own lines, never folded into the signed refutation count above.
+    if (v.fredFailed > 0) {
+      body.appendChild(this._p(doc, v.fredFailed + " failed replication" + (v.fredFailed === 1 ? "" : "s") + " recorded (FORRT)", { small: true, color: "#b26a00" }));
+    }
+    if (v.fredSuccessful > 0) {
+      body.appendChild(this._p(doc, v.fredSuccessful + " successful replication" + (v.fredSuccessful === 1 ? "" : "s") + " recorded (FORRT)", { small: true, color: "#2e7d32" }));
+    }
+    var graphTotal = (v.graphSigned || 0) + (v.graphInferred || 0);
+    if (graphTotal > 0) {
+      body.appendChild(this._tierLine(doc, v.graphSigned || 0, v.graphInferred || 0));
     }
     for (var i = 0; i < (v.notes || []).length; i++) {
       body.appendChild(this._p(doc, v.notes[i], { small: true, dim: true }));
@@ -305,6 +341,10 @@ var CiteStamp = {
     if (v.suggestion && v.suggestion.title) {
       body.appendChild(this._p(doc, "Closest match: " + v.suggestion.title + (v.suggestion.year ? " (" + v.suggestion.year + ")" : ""), { small: true, dim: true }));
       if (v.suggestion.doi) { body.appendChild(this._link(doc, "View closest match on doi.org →", "https://doi.org/" + v.suggestion.doi)); }
+    }
+    var graphDoi = (v.work && v.work.doi) || ref.doi;
+    if (graphTotal > 0 && graphDoi) {
+      body.appendChild(this._link(doc, "Open citation graph on citestamp.com →", "https://citestamp.com/paper/" + graphDoi.split("/").map(encodeURIComponent).join("/")));
     }
     if (ref.doi) {
       body.appendChild(this._link(doc, "Claim / sign your work on citestamp.com →", "https://citestamp.com/claim?paper=" + encodeURIComponent(ref.doi)));
@@ -357,7 +397,7 @@ var CiteStamp = {
   },
 
   summarize: function (window, verdicts, skipped) {
-    var counts = { resolved: 0, unresolved: 0, noMatch: 0, unchecked: 0, refuted: 0, retracted: 0, weak: 0, mismatch: 0 };
+    var counts = { resolved: 0, unresolved: 0, noMatch: 0, unchecked: 0, refuted: 0, retracted: 0, weak: 0, mismatch: 0, fredFailed: 0 };
     var flagged = [];
     for (var i = 0; i < verdicts.length; i++) {
       var v = verdicts[i];
@@ -372,6 +412,7 @@ var CiteStamp = {
       else if (v.resolved) { counts.resolved++; }
       else { counts.unresolved++; }
       if (v.refutations > 0) { counts.refuted++; }
+      if (v.fredFailed > 0) { counts.fredFailed++; }
       if (v.retracted === "marked") { counts.retracted++; }
 
       var label = (v.work && v.work.title) || (v.ref && (v.ref.title || v.ref.doi)) || "(untitled)";
@@ -381,6 +422,7 @@ var CiteStamp = {
       else if (!v.resolved) { flagged.push("• " + (v.inGraph ? "in CiteStamp graph only" : "not found anywhere we checked") + ": " + label); }
       else if (v.status === "marked-retracted") { flagged.push("• marked retracted (best-effort): " + label); }
       else if (v.refutations > 0) { flagged.push("• " + v.refutations + " recorded refutation(s): " + label); }
+      else if (v.fredFailed > 0) { flagged.push("• " + v.fredFailed + " failed replication(s) recorded (FORRT): " + label); }
       else if (v.status === "doi-title-mismatch") { flagged.push("• DOI and cited title disagree — check which you meant: " + label); }
       else if (v.status === "needs-attention") { flagged.push("• weak match — confirm: " + label); }
     }
@@ -393,7 +435,8 @@ var CiteStamp = {
     lines.push("No confident title match — not verified: " + counts.noMatch);
     lines.push("Couldn't check (lookup unavailable): " + counts.unchecked);
     lines.push("With recorded refutations: " + counts.refuted);
-    lines.push("Marked retracted (best-effort): " + counts.retracted);
+    if (counts.fredFailed) { lines.push("With failed replications recorded (FORRT): " + counts.fredFailed); }
+    if (counts.retracted) { lines.push("Marked retracted (best-effort): " + counts.retracted); }
     if (skipped) { lines.push("Skipped (no DOI or title): " + skipped); }
     if (flagged.length) {
       lines.push("");
