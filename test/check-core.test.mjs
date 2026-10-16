@@ -354,7 +354,7 @@ async function run() {
   check("bibtex: title from field, not extractor", bib[0].title === "Can Quantum-Mechanical Description of Physical Reality Be Considered Complete?");
 
   // ---- LaTeX \\begin{thebibliography} parses one ref per \\bibitem ----
-  // Regression guard for the 2026-07-14 dogfood bug: parseList line-split a
+  // Regression guard for the 2026-07-14 bug: parseList line-split a
   // 10-entry bibliography into 40+ bogus refs and checked \\end{thebibliography}
   // itself. parseThebib splits on \\bibitem, folds \\newblock, strips \\textit{}.
   var BS = String.fromCharCode(92);
