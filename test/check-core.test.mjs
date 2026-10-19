@@ -156,6 +156,14 @@ function mockFetch(url) {
     return res(404, {}); // bogus: DataCite doesn't have it either
   }
 
+  // doi.org/ra: the registration-agency gate, asked only after OpenAlex,
+  // Crossref and DataCite all missed. Live shapes probed 2026-10-16.
+  if (has("doi.org/ra/")) {
+    if (has("10.1111/alldown")) { return res(503, {}); }      // the whole lookup chain is down
+    if (has("10.11501/3307395")) { return res(200, [{ DOI: "10.11501/3307395", RA: "JaLC" }]); }
+    return res(200, [{ DOI: "x", status: "DOI does not exist" }]);
+  }
+
   return res(0, {});
 }
 
@@ -226,10 +234,26 @@ async function run() {
   check("zenodo: year from datacite", !!(zenodo.work && zenodo.work.year === 2026));
   check("zenodo: status ok", zenodo.status === "ok");
 
-  // bogus stays not-found even after the DataCite + graph hops, with the new note.
-  check("bogus: note mentions datacite", (bogus.notes || []).join(" ").indexOf("DataCite") >= 0);
-  check("bogus: note mentions graph", (bogus.notes || []).join(" ").indexOf("CiteStamp graph") >= 0);
+  // bogus stays not-found after the DataCite + graph hops AND the doi.org
+  // registration gate, and the note says where it looked.
+  check("bogus: unregistered per doi.org", bogus.doiUnregistered === true);
+  check("bogus: note names doi.org", (bogus.notes || []).join(" ").indexOf("not registered with any DOI agency (doi.org)") >= 0);
   check("bogus: not inGraph", bogus.inGraph === false);
+
+  // ---- the doi.org registration gate ----
+  // registered with another agency (JaLC): uncertain, never the hard negative
+  const jalc = await Core.checkOne({ doi: "10.11501/3307395", title: null });
+  check("jalc: status needs-attention, NOT does-not-resolve", jalc.status === "needs-attention");
+  check("jalc: weak, via doi-registration", jalc.weakMatch === true && jalc.resolvedVia === "doi-registration");
+  check("jalc: agency named", jalc.doiAgency === "JaLC" && jalc.notes.join(" ").indexOf("registered with JaLC") >= 0);
+  // unregistered DOI on a real title: the corrected DOI to check, not a negative
+  const typo = await Core.checkOne({ doi: "10.1/bogus", title: "Dynamics of coastal seagull foraging" });
+  check("typo doi: status needs-attention", typo.status === "needs-attention");
+  check("typo doi: work is the title match", !!(typo.work && typo.work.doi === "10.1/gull"));
+  check("typo doi: note suggests the DOI", typo.notes.join(" ").indexOf("the cited title matches 10.1/gull") >= 0);
+  // the hard negative never uses fake / made-up language
+  const negText = bogus.notes.join(" ").toLowerCase();
+  check("bogus: no fake/fabricated/does-not-exist wording", ["fake", "fabricat", "made up", "does not exist"].every((w) => negText.indexOf(w) < 0));
 
   // OA + CR + DataCite all miss, but the DOI is in CiteStamp's own graph.
   const ingraph = await Core.checkOne({ doi: "10.9/ingraph", title: null });

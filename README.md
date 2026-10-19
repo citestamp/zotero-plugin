@@ -47,7 +47,9 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
   in sync**, same accepted duplication as the gdocs a/b/c disambiguation. The
   resolve path is client-direct: DOI → OpenAlex → Crossref → **DataCite**
   fallback (so data/preprint deposits like Zenodo, which citation databases
-  don't index, still resolve), or title → OpenAlex search; refutations and
+  don't index, still resolve) → **doi.org** registration check for a DOI none
+  of them holds (registered with another agency reads as uncertain, never as
+  missing; since 1.0.5), or title → OpenAlex search; refutations and
   retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
   identifier.
 - **`content/citestamp.js`** is the controller. Two surfaces:
@@ -75,7 +77,7 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
 ## Privacy
 
 Everything runs locally in Zotero. DOI/title queries go from your machine
-straight to OpenAlex / Crossref / CiteStamp's public graph; **nothing about your
+straight to OpenAlex / Crossref / DataCite / doi.org / CiteStamp's public graph; **nothing about your
 library is posted to a CiteStamp server.** The only thing that ever leaves the
 plugin is an explicit, user-initiated ORCID-signed claim, and that happens in
 your browser, on the hosted claim page, not in the plugin.
@@ -102,12 +104,13 @@ they only share a founder.)
 ## Test the core (local, no Zotero)
 
 ```bash
-node zotero-plugin/test/check-core.test.mjs
+node test/check-core.test.mjs
 ```
 
 Mocks OpenAlex/Crossref/DataCite/graph and drives `checkOne` through a good DOI,
-a bogus DOI, a DOI with a recorded refutation, a retracted work, and a
-DataCite-only (Zenodo-style) DOI. No network spend.
+a bogus DOI, a DOI with a recorded refutation, a retracted work, a
+DataCite-only (Zenodo-style) DOI, and the doi.org registration check (a DOI
+registered with another agency; a DOI typo on a real title). No network spend.
 
 ## Build & install in Zotero (8 and later)
 

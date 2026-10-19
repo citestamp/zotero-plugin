@@ -3,7 +3,7 @@
 // Two surfaces, both reusing the ported citation-health core
 // (CiteStampCheckCore, loaded by bootstrap.js). Everything runs locally in
 // Zotero's privileged context: DOI/title queries go straight to OpenAlex /
-// Crossref / CiteStamp's public CORS-open graph; nothing about the library is
+// Crossref / DataCite / doi.org / CiteStamp's public CORS-open graph; nothing about the library is
 // posted to a CiteStamp server. The only thing that leaves the plugin is the
 // user clicking "Claim / sign on citestamp.com", which opens the hosted claim
 // flow in the browser (server-side ORCID signing — never reimplemented here).
