@@ -2,8 +2,8 @@
 
 A plugin for **Zotero 8 and later** that brings CiteStamp's **citation-health check** into the
 reference manager itself, the same engine that rides the web `/check` page, the
-Overleaf wrapper, the Microsoft Word add-in, and the Google Docs add-on. For any
-item it answers, in Rule-1 language:
+Overleaf wrapper and the Microsoft Word add-in (a Google Docs add-on is coming). For
+any item it answers, in plain record language (never true, false or verified):
 
 - **does this reference resolve to a real work?** (catches invented citations)
 - **does it have recorded refutations** in the CiteStamp graph? (signed edges only)
@@ -63,7 +63,7 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
   `onMainWindowLoad` / `onMainWindowUnload`); it loads the core + controller,
   registers the global section + menu, and injects the Fluent labels per window.
 - The hosted service is **untouched**. It keeps serving the
-  engines. Signing stays server-side (Rule 6): the plugin never reimplements
+  engines. Signing stays server-side: the plugin never reimplements
   ORCID OAuth; it just launches `citestamp.com/claim?paper=<doi>`.
 
 > This dir supersedes an earlier Phase-4 prototype that talked to a localhost
@@ -115,11 +115,11 @@ registered with another agency; a DOI typo on a real title). No network spend.
 ## Build & install in Zotero (8 and later)
 
 **Build the `.xpi`** (a plain zip of the plugin *contents*, not the folder, so
-`manifest.json` sits at the archive root):
+`manifest.json` sits at the archive root), with exactly the seven files the
+served .xpi carries:
 
 ```bash
-cd zotero-plugin
-zip -r -X ../citestamp-zotero.xpi . -x '*/.*' 'test/*' 'README.md'
+./package.sh
 ```
 
 **Install:** Zotero → **Tools → Plugins** → gear menu → **Install Plugin From
@@ -137,7 +137,7 @@ Zotero is a desktop GUI and can't run headless. On a machine with Zotero 8 or la
 1. Add three items: one with a **good DOI**, one with a **bogus DOI**, one with
    a **DOI that has a recorded refutation** in the CiteStamp graph.
 2. Select each, the **CiteStamp** item-pane section should show the right
-   Rule-1 verdict ("resolves to a real work" / "could not find this reference in
+   verdict ("resolves to a real work" / "could not find this reference in
    the open scholarly record" / "N recorded refutations" / "marked retracted
    (best-effort)"), plus the signed/inferred edge counts and any
    "failed/successful replication(s) recorded (FORRT)" lines.
@@ -151,7 +151,7 @@ Zotero is a desktop GUI and can't run headless. On a machine with Zotero 8 or la
 
 ## Source of truth
 
-This repository mirrors the plugin source that ships in the published .xpi (install from https://citestamp.com/get; auto-updates from citestamp.com/zotero/updates.json). `package.sh` builds the .xpi from this tree. The service behind it (citestamp.com) is not open source; its signed log is: https://github.com/citestamp/op-log
+This repository mirrors the plugin source that ships in the published .xpi (install from https://citestamp.com/get; auto-updates from citestamp.com/zotero/updates.json). `package.sh` builds an .xpi with the same seven files as the served one (manifest.json, bootstrap.js, icon.png, content/, lib/, locale/); its zip metadata differs, so to check the shipped bytes, unzip the served .xpi and compare its files with this tree. The service behind it (citestamp.com) is not open source; its signed log is: https://github.com/citestamp/op-log
 
 ## License
 
