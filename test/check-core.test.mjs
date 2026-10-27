@@ -413,6 +413,17 @@ async function run() {
   check("carryover: work is the crossref match", !!(carry.work && carry.work.title === "Lattice flux dynamics in superfluid films"));
   check("carryover: no stale suggestion", carry.suggestion === null);
 
+  // ---- marking wording (1.0.6; same rule as the served engine 1.6.2) ----
+  const lab = (type, source) => Core.markingLabel(type, source);
+  check("marking: publisher-deposited retraction names the publisher", lab("retraction", "publisher") === "marked retracted by the publisher (best-effort)");
+  check("marking: a Retraction Watch deposit names nobody", lab("retraction", "retraction-watch") === "marked retracted (best-effort)");
+  check("marking: no source names nobody", lab("retraction", null) === "marked retracted (best-effort)");
+  check("marking: EoC is never 'retracted'", lab("expression_of_concern", "publisher") === "flagged with an expression of concern by the publisher (best-effort)");
+  check("marking: withdrawal", lab("withdrawal", "retraction-watch") === "withdrawn (best-effort)");
+  check("markedLabel reads the verdict's event", Core.markedLabel({ retracted: "marked", publisherEvent: { type: "retraction", source: "publisher" } }) === "marked retracted by the publisher (best-effort)");
+  check("markingOrigin: an OpenAlex flag says so", Core.markingOrigin({ retracted: "marked", retractedVia: "openalex-flag", publisherEvent: null }).indexOf("OpenAlex") === 0 || Core.markingOrigin({ retracted: "marked", retractedVia: "openalex-flag", publisherEvent: null }).indexOf("Marking from OpenAlex") === 0);
+  check("markingOrigin: silent when the provenance line credits someone", Core.markingOrigin({ retracted: "marked", publisherEvent: { type: "retraction", source: "retraction-watch" } }) === "");
+
   console.log("");
   if (failures) { console.log(failures + " FAILED"); process.exit(1); }
   console.log("all checks passed");

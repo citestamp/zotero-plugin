@@ -8,9 +8,9 @@
 // user clicking "Claim / sign on citestamp.com", which opens the hosted claim
 // flow in the browser (server-side ORCID signing — never reimplemented here).
 //
-// Rule 1: we never say a citation is true / false / verified / fact-checked.
-// We report resolvability, recorded refutations, and publisher retraction
-// notices — each checkable and sourced.
+// We never say a citation is true / false / verified / fact-checked. We report
+// resolvability, recorded refutations, and retraction notices on the record:
+// each checkable and sourced.
 
 var CiteStamp = {
   id: null,
@@ -290,7 +290,7 @@ var CiteStamp = {
   },
 
   // rich verdict: status headline (colored), work metadata, refutations /
-  // retraction lines, and clickable doi.org + claim links. Rule-1 wording.
+  // retraction lines, and clickable doi.org + claim links. Never true/false/verified.
   paintVerdict: function (doc, body, ref, v) {
     while (body.firstChild) { body.removeChild(body.firstChild); }
 
@@ -299,7 +299,11 @@ var CiteStamp = {
     else if (v.status === "no-match") { head = "No confident match in the title search — not verified."; color = "#b26a00"; }
     else if (!v.resolved && v.inGraph) { head = "Not in the major open databases — but it is in the CiteStamp graph."; color = "#b26a00"; }
     else if (!v.resolved) { head = "Could not find this reference in the open databases or the CiteStamp graph."; color = "#b26a00"; }
-    else if (v.status === "marked-retracted") { head = "Marked retracted by the publisher (best-effort)."; color = "#c62828"; }
+    else if (v.status === "marked-retracted") {
+      var lab = CiteStampCheckCore.markedLabel(v);
+      head = lab.charAt(0).toUpperCase() + lab.slice(1) + ".";
+      color = "#c62828";
+    }
     else if (v.status === "has-refutations") { head = v.refutations + (v.refutations === 1 ? " recorded refutation" : " recorded refutations") + " in the CiteStamp graph."; color = "#c62828"; }
     else if (v.status === "doi-title-mismatch") { head = "This DOI resolves, but to a different work than the cited title — check which one you meant."; color = "#b26a00"; }
     else if (v.status === "needs-attention") { head = "Resolves, but the closest open match is weak — confirm this is the work you meant."; color = "#b26a00"; }
@@ -318,7 +322,7 @@ var CiteStamp = {
     // Watch database since 2019, so a clean/unknown retraction line here only
     // duplicated the host. The marked-retracted headline above and its
     // provenance line below STAY — detection unchanged, no-news line gone.
-    var prov = CiteStampCheckCore.provenanceLine(v.publisherEvent);
+    var prov = CiteStampCheckCore.provenanceLine(v.publisherEvent) || CiteStampCheckCore.markingOrigin(v);
     if (prov) { body.appendChild(this._p(doc, prov, { small: true, dim: true })); }
     if (v.refutations > 0 && v.refutationSources && v.refutationSources.length) {
       body.appendChild(this._p(doc, "Recorded by: " + v.refutationSources.join(", "), { small: true, dim: true }));
