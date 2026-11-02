@@ -93,12 +93,16 @@ function mockFetch(url) {
       }
       return res(404, {});
     }
+    if (has("10.1/malformed")) { return res(404, {}); }
     // registry-outage DOI: OpenAlex down too
     if (has("10.1111/alldown") || has("10.1/oadown")) { return res(429, {}); }
     // pattern (b): resolves clean in OpenAlex (is_retracted false); the
     // retraction lives ONLY in the paper's Crossref updated-by relation.
     if (has("10.1/updatedby")) {
       return res(200, { id: "https://openalex.org/W_ub", doi: "https://doi.org/10.1/updatedby", title: "Paper UB", display_name: "Paper UB", publication_year: 2019, is_retracted: false });
+    }
+    if (has("10.1177/0956797610383437")) {
+      return res(200, { id: "https://openalex.org/W_carney", doi: "https://doi.org/10.1177/0956797610383437", title: "Power Posing", display_name: "Power Posing", publication_year: 2010, is_retracted: false });
     }
     if (has("10.1/good") || has("10.1234/good")) {
       return res(200, { id: "https://openalex.org/W_good", doi: "https://doi.org/10.1/good", title: "Good Paper", display_name: "Good Paper", publication_year: 2020, is_retracted: false });
@@ -141,6 +145,8 @@ function mockFetch(url) {
     if (has("10.1/updatedby")) { return res(200, { message: { DOI: "10.1/updatedby", title: ["Paper UB"], "updated-by": [{ DOI: "10.1/ub-notice", type: "retraction" }] } }); }
     // OpenAlex misses; a soft severe class the old update-to-only code dropped
     if (has("10.1/withdrawn")) { return res(200, { message: { DOI: "10.1/withdrawn", title: ["Paper WD"], "update-to": [{ DOI: "10.1/withdrawn", type: "withdrawal" }] } }); }
+    if (has("10.1177/0956797610383437")) { return res(200, { message: { DOI: "10.1177/0956797610383437", title: ["Power Posing"], subtitle: ["Brief Nonverbal Displays Affect Neuroendocrine Levels and Risk Tolerance"], issued: { "date-parts": [[2010]] } } }); }
+    if (has("10.1/malformed")) { return res(200, { message: { get DOI() { throw new Error("malformed record"); }, title: ["Malformed"] } }); }
     if (has("10.1/good") || has("10.1234/good")) { return res(200, { message: { DOI: "10.1/good", title: ["Good Paper"], issued: { "date-parts": [[2020]] } } }); }
     if (has("10.1/refuted")) { return res(200, { message: { DOI: "10.1/refuted", title: ["Refuted Paper"], issued: { "date-parts": [[2019]] } } }); }
     if (has("10.1/replicated")) { return res(200, { message: { DOI: "10.1/replicated", title: ["Replicated Paper"], issued: { "date-parts": [[2017]] } } }); }
@@ -404,14 +410,17 @@ async function run() {
   check("suggestion: attached", !!(sugg.suggestion && sugg.suggestion.title === "Dynamics of coastal seagull foraging"));
   check("suggestion: carries year + doi", !!(sugg.suggestion && sugg.suggestion.year === 2019 && sugg.suggestion.doi === "10.1/gull"));
   // matches that DO clear a gate carry no suggestion (the work itself shows).
-  check("no suggestion on weak match", weak.suggestion === null);
+  // a weak match is a CANDIDATE (engine 1.6.5): the pane shows it as "Closest
+  // match", never as the matched work
+  check("weak match: candidate is the suggestion", !!(weak.suggestion && weak.suggestion.doi === "10.1/brca1"));
+  check("weak match: no work shown as the match", weak.work === null);
   check("no suggestion on ok", good.suggestion === null);
   // review fix: a suggestion captured in the OA pass must not survive a later
   // gate-clearing Crossref pass (stale "closest match" under a resolved work).
   const carry = await Core.checkOne({ doi: null, title: "Lattice flux carryover in superfluid films" });
   check("carryover: resolved weak via crossref pass", carry.resolved === true && carry.weakMatch === true);
-  check("carryover: work is the crossref match", !!(carry.work && carry.work.title === "Lattice flux dynamics in superfluid films"));
-  check("carryover: no stale suggestion", carry.suggestion === null);
+  check("carryover: the crossref candidate is the suggestion, not the stale OpenAlex one", !!(carry.suggestion && carry.suggestion.title === "Lattice flux dynamics in superfluid films"));
+  check("carryover: no work shown as the match", carry.work === null);
 
   // ---- marking wording (1.0.6; same rule as the served engine 1.6.2) ----
   const lab = (type, source) => Core.markingLabel(type, source);
@@ -423,6 +432,17 @@ async function run() {
   check("markedLabel reads the verdict's event", Core.markedLabel({ retracted: "marked", publisherEvent: { type: "retraction", source: "publisher" } }) === "marked retracted by the publisher (best-effort)");
   check("markingOrigin: an OpenAlex flag says so", Core.markingOrigin({ retracted: "marked", retractedVia: "openalex-flag", publisherEvent: null }).indexOf("OpenAlex") === 0 || Core.markingOrigin({ retracted: "marked", retractedVia: "openalex-flag", publisherEvent: null }).indexOf("Marking from OpenAlex") === 0);
   check("markingOrigin: silent when the provenance line credits someone", Core.markingOrigin({ retracted: "marked", publisherEvent: { type: "retraction", source: "retraction-watch" } }) === "");
+
+  // ---- engine 1.6.5 port (2026-11-02) ----
+  // a Zotero item's title carries the subtitle; Crossref keeps it apart
+  const carney = await Core.checkOne({ doi: "10.1177/0956797610383437", title: "Power posing: Brief nonverbal displays affect neuroendocrine levels and risk tolerance" });
+  check("subtitle: full title is no mismatch", carney.titleMismatch === false && carney.status === "ok");
+  const stapled = await Core.checkOne({ doi: "10.1177/0956797610383437", title: "Prospect Theory: An Analysis of Decision under Risk" });
+  check("subtitle: a wrong title is still a mismatch", stapled.titleMismatch === true);
+  // a check that throws after resolving is couldn't check, never ok
+  const malformed = await Core.checkOne({ doi: "10.1/malformed", title: null });
+  check("throw: status unchecked, not ok", malformed.status === "unchecked" && malformed.resolved === false);
+  check("version: port 1.5.1", Core.version === "1.5.1");
 
   console.log("");
   if (failures) { console.log(failures + " FAILED"); process.exit(1); }
