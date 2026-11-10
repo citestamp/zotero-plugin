@@ -20,8 +20,27 @@ function res(status, body) {
   });
 }
 
+// PubMed (NCBI esummary) records for the 1.5.2 cases; PUBMED_DOWN makes it not answer
+const PUBMED = {
+  "11111": { title: "Good Paper.", source: "J Good", pubdate: "2020 Jan", doi: "10.1234/good" },
+  "22222": { title: "An old paper with no DOI on kidney clearance.", source: "J Physiol", pubdate: "1970 Mar" },
+  "33333": { title: "A retracted old paper on kidneys.", source: "J Test", pubdate: "1998", pubtype: ["Journal Article", "Retracted Publication"] },
+};
+let PUBMED_DOWN = false;
+let pubmedAsked = 0;
+
 function mockFetch(url) {
   const has = (t) => url.toLowerCase().indexOf(t) >= 0;
+  if (has("eutils.ncbi.nlm.nih.gov")) {
+    pubmedAsked++;
+    if (PUBMED_DOWN) { return res(503, {}); }
+    const id = new URL(url).searchParams.get("id");
+    const p = PUBMED[id];
+    const doc = p
+      ? { uid: id, title: p.title, source: p.source, pubdate: p.pubdate, pubtype: p.pubtype || ["Journal Article"], articleids: [{ idtype: "pubmed", value: id }].concat(p.doi ? [{ idtype: "doi", value: p.doi }] : []) }
+      : { uid: id, error: "cannot get document summary" };
+    return res(200, { result: { uids: [id], [id]: doc } });
+  }
   const isOA = has("api.openalex.org");
   const isCR = has("api.crossref.org");
   const isGraph = has("citestamp.com/api/v1/graph");
@@ -57,6 +76,13 @@ function mockFetch(url) {
 
   if (isOA) {
     if (has("/works?search=")) {
+      // A07 (engine 1.6.6): an exact-title candidate whose DOI cannot be read
+      if (has("throwing")) {
+        return res(200, { results: [ { id: "https://openalex.org/W_throw", doi: { toString() { throw new Error("malformed record"); } }, title: "Throwing candidate exact title study", display_name: "Throwing candidate exact title study", publication_year: 2020, is_retracted: false } ] });
+      }
+      if (has("readable")) {
+        return res(200, { results: [ { id: "https://openalex.org/W_read", doi: "https://doi.org/10.5555/right", title: "Readable candidate exact title study", display_name: "Readable candidate exact title study", publication_year: 2020, is_retracted: false } ] });
+      }
       // whole title-search API down (429 budget wall) for these queries
       if (has("warp") || has("offline") || has("attention") || has("halfdown")) { return res(429, {}); }
       // out-of-budget 200 with an ERROR body (no results array)
@@ -442,7 +468,41 @@ async function run() {
   // a check that throws after resolving is couldn't check, never ok
   const malformed = await Core.checkOne({ doi: "10.1/malformed", title: null });
   check("throw: status unchecked, not ok", malformed.status === "unchecked" && malformed.resolved === false);
-  check("version: port 1.5.1", Core.version === "1.5.1");
+  // ---- engine 1.6.6 port (2026-11-02 audit, A07) ----
+  // an unregistered DOI whose title search throws after a gate began filling a
+  // match (an exact-title candidate whose DOI cannot be read) is does-not-resolve,
+  // never ok, and keeps no part of the match
+  const partial = await Core.checkOne({ doi: "10.1/unreg-throws", title: "Throwing candidate exact title study" });
+  check("A07: does-not-resolve, not ok", partial.status === "does-not-resolve" && partial.resolved === false);
+  check("A07: no partial work or suggestion kept", partial.work === null && partial.suggestion === null);
+  check("A07: the note says the check stopped, dated", /check stopped on an error before it finished, so no corrected DOI can be suggested \(checked \d{4}-\d{2}-\d{2}\)/.test(partial.notes.join(" ")));
+  const readable = await Core.checkOne({ doi: "10.1/unreg-readable", title: "Readable candidate exact title study" });
+  check("A07 control: a readable candidate is still suggested (confirm)", readable.resolved === true && readable.weakMatch === true && !!(readable.work && readable.work.doi === "10.5555/right"));
+  // ---- PubMed IDs (port 1.5.2, 2026-11-10; same answers as the served engine 1.7.0) ----
+  check("findPmid: Extra line", Core.findPmid("PMID: 32109013\nPMCID: PMC7092819") === "32109013");
+  check("findPmid: a PMC ID is not one", Core.findPmid("PMCID: PMC7092819") === null);
+  check("findPmid: a PubMed address", Core.findPmid("https://pubmed.ncbi.nlm.nih.gov/32109013/") === "32109013");
+  const pmGood = await Core.checkOne({ doi: null, pmid: "11111", title: "Good Paper" });
+  check("pubmed: held with a DOI resolves through the DOI", pmGood.status === "ok" && pmGood.resolved === true && pmGood.work && pmGood.work.doi === "10.1/good");
+  check("pubmed: the note names the PMID and the DOI", pmGood.notes[0] === "PubMed's record of PMID 11111 gives the DOI 10.1234/good");
+  const pmNoDoi = await Core.checkOne({ doi: null, pmid: "22222", title: "An old paper with no DOI on kidney clearance" });
+  check("pubmed: held with no DOI resolves from PubMed's record", pmNoDoi.status === "ok" && pmNoDoi.resolvedVia === "pubmed" && pmNoDoi.work.pmid === "22222" && pmNoDoi.work.doi === null);
+  const pmRetr = await Core.checkOne({ doi: null, pmid: "33333", title: "A retracted old paper on kidneys" });
+  check("pubmed: PubMed's retracted type marks it", pmRetr.status === "marked-retracted" && pmRetr.retractedVia === "pubmed");
+  check("pubmed: the marking says where it came from", Core.markingOrigin(pmRetr).indexOf("Marking from PubMed's record") === 0);
+  const pmDead = await Core.checkOne({ doi: null, pmid: "99999999", title: "Screen time and anxiety in adolescents a cohort study of nothing" });
+  check("pubmed: a dead ID with no title match is a no-match, never does-not-resolve", pmDead.status === "no-match" && pmDead.pubmedNowhere === true);
+  check("pubmed: its note leads with the ID", pmDead.notes[0].indexOf("the cited PubMed ID doesn't lead to this work: PubMed holds no record under PMID 99999999 (checked ") === 0);
+  const pmBare = await Core.checkOne({ doi: null, pmid: "99999999", title: null });
+  check("pubmed: a bare dead ID is a no-match with the ID note", pmBare.status === "no-match" && pmBare.pubmedNowhere === true && pmBare.notes[0].indexOf("PubMed holds no record under PMID 99999999") === 0);
+  PUBMED_DOWN = true;
+  const pmDown = await Core.checkOne({ doi: null, pmid: "11111", title: null });
+  check("pubmed: no answer and nothing else to look up is couldn't check", pmDown.status === "unchecked" && !pmDown.pubmedNowhere);
+  PUBMED_DOWN = false;
+  const before = pubmedAsked;
+  await Core.checkOne({ doi: "10.1/good", pmid: "11111", title: null });
+  check("pubmed: a DOI in the item skips PubMed", pubmedAsked === before);
+  check("version: port 1.5.2", Core.version === "1.5.2");
 
   console.log("");
   if (failures) { console.log(failures + " FAILED"); process.exit(1); }

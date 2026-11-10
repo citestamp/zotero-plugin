@@ -49,8 +49,12 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
   fallback (so data/preprint deposits like Zenodo, which citation databases
   don't index, still resolve) → **doi.org** registration check for a DOI none
   of them holds (registered with another agency reads as uncertain, never as
-  missing; since 1.0.5), or title → OpenAlex search; refutations and
-  retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
+  missing; since 1.0.5), or title → OpenAlex search. An item with no DOI whose
+  Extra field carries "PMID: <id>" (Zotero's PubMed import writes it there) is
+  looked up at PubMed first, sending only the ID (since 1.0.8): PubMed holding it
+  under the item's title resolves it, through the record's DOI when it has one;
+  another paper or no record under it reads as "the item's PubMed ID doesn't lead
+  to this work", never as missing. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
   identifier.
 - **`content/citestamp.js`** is the controller. Two surfaces:
   1. an **item-pane section** (`Zotero.ItemPaneManager.registerSection`) that
@@ -77,7 +81,8 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
 ## Privacy
 
 Everything runs locally in Zotero. DOI/title queries go from your machine
-straight to OpenAlex / Crossref / DataCite / doi.org / CiteStamp's public graph; **nothing about your
+straight to OpenAlex / Crossref / DataCite / doi.org / CiteStamp's public graph, and a PubMed ID from
+an item's Extra field (when the item has no DOI) goes to PubMed (NCBI), the ID only; **nothing about your
 library is posted to a CiteStamp server.** The only thing that ever leaves the
 plugin is an explicit, user-initiated ORCID-signed claim, and that happens in
 your browser, on the hosted claim page, not in the plugin.
@@ -110,7 +115,8 @@ node test/check-core.test.mjs
 Mocks OpenAlex/Crossref/DataCite/graph and drives `checkOne` through a good DOI,
 a bogus DOI, a DOI with a recorded refutation, a retracted work, a
 DataCite-only (Zenodo-style) DOI, and the doi.org registration check (a DOI
-registered with another agency; a DOI typo on a real title). No network spend.
+registered with another agency; a DOI typo on a real title), and PubMed IDs (held with and without a DOI,
+marked retracted, no record, PubMed not answering, a DOI in the item skipping PubMed). No network spend.
 
 ## Build & install in Zotero (8 and later)
 

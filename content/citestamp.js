@@ -158,8 +158,16 @@ var CiteStamp = {
     try { doi = item.getField("DOI") || ""; } catch (e) { doi = ""; }
     var title = "";
     try { title = item.getField("title") || ""; } catch (e) { title = ""; }
-    if (!doi && !title) { return null; }
-    return { key: null, doi: doi ? doi.toLowerCase() : null, title: title || null, raw: title || doi };
+    // Zotero's PubMed import writes "PMID: <id>" into Extra; it is read when the item has no DOI (1.0.8)
+    var extra = "";
+    try { extra = item.getField("extra") || ""; } catch (e) { extra = ""; }
+    // an item type with no DOI field may keep "DOI: ..." in Extra: that item is not a PubMed-only one
+    var extraDoi = /(^|\n)\s*DOI:\s*10\./i.test(extra);
+    var pmid = (!doi && extra && !extraDoi) ? CiteStampCheckCore.findPmid(extra) : null;
+    if (!doi && !title && !pmid) { return null; }
+    var ref = { key: null, doi: doi ? doi.toLowerCase() : null, title: title || null, raw: title || doi || ("PMID " + pmid) };
+    if (pmid) { ref.pmid = pmid; }
+    return ref;
   },
 
   // ---- item-pane render ---------------------------------------------------
@@ -295,7 +303,8 @@ var CiteStamp = {
     while (body.firstChild) { body.removeChild(body.firstChild); }
 
     var head, color;
-    if (v.status === "unchecked") { head = "Couldn't check — the lookup services did not answer. Try again."; color = "#b26a00"; }
+    if (v.pubmedNowhere) { head = "The item's PubMed ID doesn't lead to " + (ref.title ? "this work" : "a work") + ". Check the PubMed ID."; color = "#b26a00"; }
+    else if (v.status === "unchecked") { head = "Couldn't check — the lookup services did not answer. Try again."; color = "#b26a00"; }
     else if (v.status === "no-match") { head = "No confident match in the title search — not verified."; color = "#b26a00"; }
     else if (!v.resolved && v.inGraph) { head = "Not in the major open databases — but it is in the CiteStamp graph."; color = "#b26a00"; }
     else if (!v.resolved) { head = "Could not find this reference in the open databases or the CiteStamp graph."; color = "#b26a00"; }
@@ -316,6 +325,7 @@ var CiteStamp = {
       if (v.work.year) { meta.push("(" + v.work.year + ")"); }
       if (meta.length) { body.appendChild(this._p(doc, meta.join(" "), { dim: true })); }
       if (v.work.doi) { body.appendChild(this._link(doc, "View on doi.org →", "https://doi.org/" + v.work.doi)); }
+      else if (v.work.pmid) { body.appendChild(this._link(doc, "View on PubMed →", "https://pubmed.ncbi.nlm.nih.gov/" + v.work.pmid + "/")); }
     }
 
     // Soft-honor (1.0.4): Zotero has flagged retractions via the Retraction
@@ -421,7 +431,8 @@ var CiteStamp = {
 
       var label = (v.work && v.work.title) || (v.ref && (v.ref.title || v.ref.doi)) || "(untitled)";
       if (label.length > 70) { label = label.slice(0, 67) + "…"; }
-      if (v.status === "unchecked") { flagged.push("• couldn't check (lookup services did not answer): " + label); }
+      if (v.pubmedNowhere) { flagged.push("• the item's PubMed ID doesn't lead to this work: " + label); }
+      else if (v.status === "unchecked") { flagged.push("• couldn't check (lookup services did not answer): " + label); }
       else if (v.status === "no-match") { flagged.push("• no confident match in the title search: " + label); }
       else if (!v.resolved) { flagged.push("• " + (v.inGraph ? "in CiteStamp graph only" : "not found anywhere we checked") + ": " + label); }
       else if (v.status === "marked-retracted") { flagged.push("• marked retracted (best-effort): " + label); }
