@@ -54,7 +54,11 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
   looked up at PubMed first, sending only the ID (since 1.0.8): PubMed holding it
   under the item's title resolves it, through the record's DOI when it has one;
   another paper or no record under it reads as "the item's PubMed ID doesn't lead
-  to this work", never as missing. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
+  to this work", never as missing. When the title search finds no clean match and
+  the item has its journal, volume and pages, the check reads that issue's records
+  at Crossref (since 1.0.9): the item's title there resolves it, a close title on
+  its first page or a different work on that page reads as confirm, and a miss
+  there never reads as missing. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
   identifier.
 - **`content/citestamp.js`** is the controller. Two surfaces:
   1. an **item-pane section** (`Zotero.ItemPaneManager.registerSection`) that
@@ -82,7 +86,9 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
 
 Everything runs locally in Zotero. DOI/title queries go from your machine
 straight to OpenAlex / Crossref / DataCite / doi.org / CiteStamp's public graph, and a PubMed ID from
-an item's Extra field (when the item has no DOI) goes to PubMed (NCBI), the ID only; **nothing about your
+an item's Extra field (when the item has no DOI) goes to PubMed (NCBI), the ID only, and for an item whose
+title found no clean match, its journal name, volume, issue, ISSN and year go to Crossref to read that issue
+(since 1.0.9); **nothing about your
 library is posted to a CiteStamp server.** The only thing that ever leaves the
 plugin is an explicit, user-initiated ORCID-signed claim, and that happens in
 your browser, on the hosted claim page, not in the plugin.
@@ -117,6 +123,14 @@ a bogus DOI, a DOI with a recorded refutation, a retracted work, a
 DataCite-only (Zenodo-style) DOI, and the doi.org registration check (a DOI
 registered with another agency; a DOI typo on a real title), and PubMed IDs (held with and without a DOI,
 marked retracted, no record, PubMed not answering, a DOI in the item skipping PubMed). No network spend.
+
+```bash
+node test/issue-core.test.mjs
+```
+
+The cited issue (1.0.9): the location read from an item's fields, the item's title found in that issue,
+a different work on its first page, a miss that stays a no-match, the year narrowing the search, and no
+title ever sent to Crossref for it.
 
 ## Build & install in Zotero (8 and later)
 

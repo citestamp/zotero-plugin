@@ -167,7 +167,26 @@ var CiteStamp = {
     if (!doi && !title && !pmid) { return null; }
     var ref = { key: null, doi: doi ? doi.toLowerCase() : null, title: title || null, raw: title || doi || ("PMID " + pmid) };
     if (pmid) { ref.pmid = pmid; }
+    // the item's journal, volume, issue and pages: when no title matched cleanly, the check
+    // reads that issue's records at Crossref (core 1.6.0)
+    var loc = this.locFromItem(item);
+    if (loc) { ref.loc = loc; }
     return ref;
+  },
+
+  // An item's cited location from its own fields, or null. Only the journal name, volume,
+  // issue, first page and year are read; the year narrows Crossref's search to the issue.
+  locFromItem: function (item) {
+    function field(name) {
+      try { return String(item.getField(name) || "").trim(); } catch (e) { return ""; }
+    }
+    var journal = field("publicationTitle");
+    var volume = field("volume");
+    var pm = /^\s*([A-Za-z]{0,3}[0-9]{1,12})/.exec(field("pages"));
+    if (!journal || !/^[0-9]{1,6}$/.test(volume) || !pm) { return null; }
+    var y = /\b(1[89]|20)[0-9]{2}\b/.exec(field("date"));
+    return { journal: journal, volume: volume, issue: field("issue") || null, first_page: pm[1],
+      year: y ? parseInt(y[0], 10) : null, titled: true };
   },
 
   // ---- item-pane render ---------------------------------------------------
