@@ -58,7 +58,14 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
   the item has its journal, volume and pages, the check reads that issue's records
   at Crossref (since 1.0.9): the item's title there resolves it, a close title on
   its first page or a different work on that page reads as confirm, and a miss
-  there never reads as missing. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
+  there never reads as missing. A record the check resolves is read against the
+  item (since 1.0.10): a DOI's record against the item's title, year and
+  creators, and a title found by search against its creators. A title with a word
+  swapped, a year more than a year from every year the record carries (for a
+  book, only a later one) or a record whose authors include none of the item's
+  creators reads as confirm, and a book item is never settled on a journal item
+  that shares its title (most often a review of it). These reads use the records
+  the check already fetches; they send nothing new. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
   identifier.
 - **`content/citestamp.js`** is the controller. Two surfaces:
   1. an **item-pane section** (`Zotero.ItemPaneManager.registerSection`) that
@@ -131,6 +138,15 @@ node test/issue-core.test.mjs
 The cited issue (1.0.9): the location read from an item's fields, the item's title found in that issue,
 a different work on its first page, a miss that stays a no-match, the year narrowing the search, and no
 title ever sent to Crossref for it.
+
+```bash
+node test/record-core.test.mjs
+```
+
+The record against the item (1.0.10): a year far from the record's, a title with a word swapped and a
+record naming none of the item's creators each read as confirm; a spelling variant, a one-year gap and an
+item with no creators stay found; a book item is not settled on a journal item with its title, and a book
+record matched to a book item is found.
 
 ## Build & install in Zotero (8 and later)
 

@@ -171,7 +171,40 @@ var CiteStamp = {
     // reads that issue's records at Crossref (core 1.6.0)
     var loc = this.locFromItem(item);
     if (loc) { ref.loc = loc; }
+    // the item's creators, year and type: a resolved record is read against them (core 1.7.0).
+    // citedYear, never ref.year, so the title search is unchanged
+    var names = this.creatorNames(item);
+    if (names.length) { ref.authors = names; }
+    var y = /\b(1[89]|20)[0-9]{2}\b/.exec(this.itemField(item, "date"));
+    if (y) { ref.citedYear = parseInt(y[0], 10); }
+    var type = this.itemTypeName(item);
+    if (type) { ref.itemType = type; }
     return ref;
+  },
+
+  itemField: function (item, name) {
+    try { return String(item.getField(name) || "").trim(); } catch (e) { return ""; }
+  },
+
+  // Every creator's last name (a single-field name is kept whole), or [].
+  creatorNames: function (item) {
+    var out = [];
+    var cs = [];
+    try { cs = (item.getCreators && item.getCreators()) || []; } catch (e) { cs = []; }
+    for (var i = 0; i < cs.length; i++) {
+      var n = String((cs[i] && (cs[i].lastName || cs[i].name)) || "").trim();
+      if (n) { out.push(n); }
+    }
+    return out;
+  },
+
+  // The item type's name ("book", "journalArticle"), or null.
+  itemTypeName: function (item) {
+    try {
+      if (item.itemType) { return String(item.itemType); }
+      if (typeof Zotero !== "undefined" && Zotero.ItemTypes && item.itemTypeID) { return String(Zotero.ItemTypes.getName(item.itemTypeID)); }
+    } catch (e) { return null; }
+    return null;
   },
 
   // An item's cited location from its own fields, or null. Only the journal name, volume,
