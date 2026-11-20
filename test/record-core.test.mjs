@@ -64,7 +64,7 @@ const cvprItem = (o = {}) => item({ fields: { title: o.title || CVPR_T, DOI: "10
 const BANNED = /\bfake\b|fabricat|made up|does not exist|doesn't exist|\bverified\b/i;
 
 async function main() {
-  check("version: core 1.7.0", Core.version === "1.7.1");
+  check("version: core 1.7.0", Core.version === "1.7.2");
 
   const ref = plug.refFromItem(cvprItem());
   check("refFromItem carries creators, year and type, never ref.year", JSON.stringify(ref.authors) === '["Writer","Critic"]' && ref.citedYear === 2023 && ref.itemType === "journalArticle" && ref.year === undefined);

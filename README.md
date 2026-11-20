@@ -67,7 +67,9 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
   that shares its title (most often a review of it). These reads use the records
   the check already fetches; they send nothing new. Every Crossref lookup waits its turn in one queue that stays under Crossref's
   own limits (since 1.0.11), so checking a large selection doesn't send it all at
-  once. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
+  once. Since 1.0.12 the lookups carry no CiteStamp address (Crossref's public pool,
+  from your own connection), and a record lookup that gets no answer is asked once
+  more. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
   identifier.
 - **`content/citestamp.js`** is the controller. Two surfaces:
   1. an **item-pane section** (`Zotero.ItemPaneManager.registerSection`) that
@@ -201,3 +203,10 @@ node test/pace-core.test.mjs
 
 The paced queue (1.0.11): twenty items checked at once never put more than three Crossref requests in
 flight or start more than ten records in a second, and title searches go out at least 380 ms apart.
+
+```bash
+node test/pool-core.test.mjs
+```
+
+No address and one more try (1.0.12): no Crossref lookup carries an email, one Crossref request runs at a
+time, and a DOI whose first lookup got a 429 is asked again and resolves.

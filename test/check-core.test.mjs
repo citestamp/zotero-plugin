@@ -502,7 +502,7 @@ async function run() {
   const before = pubmedAsked;
   await Core.checkOne({ doi: "10.1/good", pmid: "11111", title: null });
   check("pubmed: a DOI in the item skips PubMed", pubmedAsked === before);
-  check("version: port 1.7.1", Core.version === "1.7.1");
+  check("version: port 1.7.2", Core.version === "1.7.2");
 
   console.log("");
   if (failures) { console.log(failures + " FAILED"); process.exit(1); }

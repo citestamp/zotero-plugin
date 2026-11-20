@@ -64,7 +64,7 @@ async function run() {
   const oref = plug.refFromItem(odd);
   await Core.checkOne(oref, {});
   check("a title that reads like a location is not one", !oref.loc && urls.every((u) => !u.includes("container-title") && !u.includes("/journals")));
-  check("version 1.7.1", Core.version === "1.7.1");
+  check("version 1.7.2", Core.version === "1.7.2");
   console.log(failed ? "\n" + failed + " FAILED" : "\nALL OK");
   process.exit(failed ? 1 : 0);
 }

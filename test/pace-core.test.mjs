@@ -49,7 +49,7 @@ function peak(ts) {
 }
 
 (async () => {
-  check("version 1.7.1", Core.version === "1.7.1");
+  check("version 1.7.2", Core.version === "1.7.2");
 
   // 20 items with DOIs, all checked at once, OpenAlex out
   const dois = Array.from({ length: 20 }, (_, i) => "10.5555/pace." + (1000 + i));
