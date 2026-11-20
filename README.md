@@ -65,7 +65,9 @@ ceiling), the menu uses `Zotero.MenuManager`, which is Zotero 8+.
   book, only a later one) or a record whose authors include none of the item's
   creators reads as confirm, and a book item is never settled on a journal item
   that shares its title (most often a review of it). These reads use the records
-  the check already fetches; they send nothing new. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
+  the check already fetches; they send nothing new. Every Crossref lookup waits its turn in one queue that stays under Crossref's
+  own limits (since 1.0.11), so checking a large selection doesn't send it all at
+  once. Refutations and retraction come from CiteStamp's public, CORS-open graph endpoint with a bare
   identifier.
 - **`content/citestamp.js`** is the controller. Two surfaces:
   1. an **item-pane section** (`Zotero.ItemPaneManager.registerSection`) that
@@ -192,3 +194,10 @@ This repository mirrors the plugin source that ships in the published .xpi (inst
 ## License
 
 MIT, see LICENSE.
+
+```bash
+node test/pace-core.test.mjs
+```
+
+The paced queue (1.0.11): twenty items checked at once never put more than three Crossref requests in
+flight or start more than ten records in a second, and title searches go out at least 380 ms apart.
